@@ -38,19 +38,19 @@ class BIRNN(object):
 	    self.bhh_b = theano.shared(name='bhh_b', value=bhh_b)
 	    self.bhy = theano.shared(name='bhy', value=bhy)
 
-	    self.__theano_build__()
+	    self.theano_build()
 
-	def __theano_build__(self):
+	def theano_init(self):
 		x = T.ivector('x')
 		y = T.ivector('y')
 
-		def forward_prop_step_f(x_t, st_prev, Ul, Wl, bhl):
+		def forward_pass_f(x_t, st_prev, Ul, Wl, bhl):
 			st = T.tanh(Ul[:,x_t] + Wl.dot(st_prev) + bhl)
 			return st
 
 		Ul, Wl, bhl = self.Wxh_f, self.Whh_f, self.bhh_f
 		hf_states, updates = theano.scan(
-			forward_prop_step_f,
+			forward_pass_f,
 			sequences=x,
 			outputs_info=[dict(initial=T.zeros(self.hidden_dim))],
 			non_sequences=[Ul, Wl, bhl])
@@ -89,11 +89,11 @@ class BIRNN(object):
 
 		self.forward_propagation = theano.function([x], o)
 		self.predict = theano.function([x], prediction)
-		self.ce_error = theano.function([x, y], o_error)
+		self.calc_error = theano.function([x, y], o_error)
 		self.bptt = theano.function([x, y], gparams)
 
 
-		self.sgd_step = theano.function([x,y,learning_rate], [o_error],
+		self.train_step = theano.function([x,y,learning_rate], [o_error],
 						updates=updates)
 
 
