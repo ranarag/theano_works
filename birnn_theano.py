@@ -84,13 +84,14 @@ class BIRNN(object):
 		params = [self.Wxh_f,self.Whh_f,self.Wxh_b,self.Why_b,self.Whh_b, self.Whh_fb, self.bhh_f,self.bhh_b,self.bhy]
 		gparams = [T.grad(o_error, param) for param in params]
 		learning_rate = T.scalar('learning_rate')
+		clipped_gparams = [T.clip(gparam, T.ones_like(gparam)*-5.0, T.ones_like(gparam)*5.0) for gparam in gparams]
 
-		updates = [(param, param - learning_rate*gparam) for param,gparam in zip(params,gparams)]
+		updates = [(param, param - learning_rate*gparam) for param,gparam in zip(params,clipped_gparams)]
 
 		self.forward_propagation = theano.function([x], o)
 		self.predict = theano.function([x], prediction)
 		self.calc_error = theano.function([x, y], o_error)
-		self.bptt = theano.function([x, y], gparams)
+		self.bptt = theano.function([x, y], clipped_gparams)
 
 
 		self.train_step = theano.function([x,y,learning_rate], [o_error],
