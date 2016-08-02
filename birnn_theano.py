@@ -42,7 +42,7 @@ class BIRNN(object):
 
         self.theano_build()
 
-    def theano_init(self):
+    def theano_build(self):
         x = T.ivector('x')
         y = T.ivector('y')
 
@@ -73,13 +73,13 @@ class BIRNN(object):
         hb_states, updates = theano.scan(
             forward_passb,
             sequences=x,
-            outputs_info=[None, dict(initial=T.zeros(self.hidden_dim))],
+            outputs_info=[dict(initial=T.zeros(self.hidden_dim))],
             non_sequences=[U, W, bh]
         )
         hb_states = hb_states[::-1]
         o = T.nnet.softmax(self.Why_f.dot(hf_states)+
                            self.Why_b.dot(hb_states)+
-                           self.by)
+                           self.bhy)
         prediction = T.argmax(o, axis=1)
 
         o_error = T.sum(T.nnet.categorical_crossentropy(o, y))
