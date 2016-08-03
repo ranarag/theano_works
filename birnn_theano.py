@@ -43,11 +43,11 @@ class BIRNN(object):
         self.theano_build()
 
     def theano_build(self):
-        x = T.ivector('x')
-        y = T.ivector('y')
+        x = T.fmatrix('x')
+        y = T.fmatrix('y')
 
         def forward_pass_f(x_t, st_prev, Ul, Wl, bhl):
-            st = T.tanh(Ul[:,x_t] + Wl.dot(st_prev) + bhl)
+            st = T.tanh(Ul.dot(x_t) + Wl.dot(st_prev) + bhl)
             return st
 
         Ul, Wl, bhl = self.Wxh_f, self.Whh_f, self.bhh_f
@@ -63,7 +63,7 @@ class BIRNN(object):
             # print T.shape(U)
             # print st_prev.ndim
             # exit()
-            s_t = T.tanh(U[:,a_x] + W.dot(a_s_t) + bh)
+            s_t = T.tanh(U.dot(a_x) + W.dot(a_s_t) + bh)
             # o_t = T.nnet.softmax(V.dot(s_t) + by)
             return s_t
 
@@ -77,14 +77,25 @@ class BIRNN(object):
             non_sequences=[U, W, bh]
         )
         hb_states = hb_states[::-1]
-        o = T.nnet.softmax(self.Why_f.dot(hf_states)+
-                           self.Why_b.dot(hb_states)+
-                           self.bhy)
+        def output_calculator(hf_st, hb_st):
+            o_t = T.nnet.softmax(self.Why_f.dot(hf_st)+
+                                 self.Why_b.dot(hb_st)+
+                                 self.bhy)
+            return o_t
+        o, _ = theano.scan(output_calculator,
+                           sequences=[hf_states, hb_states],
+                           outputs_info=[None],
+                           n_steps = x.shape[0]
+                           )
+        #o = T.nnet.softmax(self.Why_f.dot(hf_states)+
+                           #self.Why_b.dot(hb_states)+
+                           #self.bhy)
+        o = o[:, 0, :]
         prediction = T.argmax(o, axis=1)
 
         o_error = T.sum(T.nnet.categorical_crossentropy(o, y))
 
-        params = [self.Wxh_f,self.Whh_f,self.Wxh_b,self.Why_b,self.Whh_b, self.bhh_f,self.bhh_b,self.bhy]
+        params = [self.Wxh_f,self.Whh_f, self.Why_f, self.Wxh_b,self.Why_b,self.Whh_b, self.bhh_f,self.bhh_b,self.bhy]
         gparams = [T.grad(o_error, param) for param in params]
         learning_rate = T.scalar('learning_rate')
         clipped_gparams = [T.clip(gparam, T.ones_like(gparam)*-5.0, T.ones_like(gparam)*5.0) for gparam in gparams]
